@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -16,6 +18,56 @@ import (
 const openaiURL = "https://api.openai.com/v1/chat/completions"
 
 var openaiAPIKey = os.Getenv("OPENAI_KEY")
+
+// ServiceUsage tracks the number of API requests made for each service.
+var serviceUsage = make(map[string]int)
+
+func listFiles() []string {
+	files, err := ioutil.ReadDir(".")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var filenames []string
+	for _, file := range files {
+		if !file.IsDir() {
+			filenames = append(filenames, file.Name())
+		}
+	}
+	return filenames
+}
+
+func getLatestGitCommit() string {
+	cmd := exec.Command("git", "log", "-1", "--pretty=%H %B")
+	output, err := cmd.Output()
+	if err != nil {
+		return "Error fetching commit: " + err.Error()
+	}
+	return string(output)
+}
+
+func getFileStatus(filename string) string {
+	cmd := exec.Command("git", "status", "--short", filename)
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
+}
+
+func updateBackendServicesDisplay() string {
+	var servicesStr string
+	for _, model := range models {
+		for _, service := range model.Services {
+			count := serviceUsage[service.ModelName]
+			cost := float64(count) * (service.InputCost + service.OutputCost) // Assuming cost is per request
+			if cost > 0 || count > 0 {
+				servicesStr += fmt.Sprintf("%s (API Requests: %d, Cost: $%.2f)   ", service.ModelName, count, cost)
+			}
+		}
+	}
+	return servicesStr
+}
 
 type Message struct {
 	Role    string `json:"role"`
@@ -27,6 +79,7 @@ func checkError(err error, msg string) {
 		log.Fatalf("%s: %v", msg, err)
 	}
 }
+
 func getChatCompletion(messages []Message, service Service) (string, float64) {
 	data := map[string]interface{}{
 		"model":       service.ModelName,
@@ -87,6 +140,9 @@ func getChatCompletion(messages []Message, service Service) (string, float64) {
 	}
 	cost := totalTokens / 1000 * (service.InputCost + service.OutputCost) // Assuming cost is per 1K tokens
 
+	// Increment the service usage count
+	serviceUsage[service.ModelName]++
+
 	return content, cost
 }
 
@@ -96,12 +152,14 @@ func main() {
 	stack := &MessageStack{}
 
 	// Title bar
-	titleBar := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetText("Your Application Name")
+	titleBar := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetText("Doc Bot")
 	titleBar.SetBorderPadding(1, 1, 2, 2) // Adjust padding as needed
 
 	// Create panes with borders
-	gitCommit := tview.NewTextView().SetText("Git Commit: ...").SetBorder(true).SetTitle("Git Commit")
-	trackedFiles := tview.NewList().ShowSecondaryText(true).SetBorder(true).SetTitle("Tracked Files")
+	gitCommit := tview.NewTextView()
+	gitCommit.SetText("Git Commit: ...").SetBorder(true).SetTitle("Git Commit")
+	trackedFiles := tview.NewList()
+	trackedFiles.ShowSecondaryText(true).SetBorder(true).SetTitle("Tracked Files")
 
 	// Backend Services with API Requests displayed side by side
 	backendServices := tview.NewTextView().SetDynamicColors(true)
@@ -117,6 +175,7 @@ func main() {
 	// Chat tracking pane
 	chatTracking := tview.NewTextView()
 	chatTracking.SetDynamicColors(true).SetBorder(true).SetTitle("Chat Tracking")
+	chatTracking.SetScrollable(true)
 
 	// Input field for user input
 	inputField := tview.NewInputField()
@@ -125,7 +184,7 @@ func main() {
 	// Layout
 	// row int, column int, rowSpan int, colSpan int, minGridHeight int, minGridWidth int,
 	grid := tview.NewGrid().
-		SetRows(2, 3, 0, 2).                        // Rows remain unchanged
+		SetRows(3, 4, 0, 2).                        // Rows remain unchanged
 		SetColumns(30, 30, 0).                      // Adjusted column widths
 		AddItem(titleBar, 0, 0, 1, 3, 0, 0, false). // Span the title bar across the entire width
 		AddItem(gitCommit, 1, 0, 1, 1, 0, 0, false).
@@ -139,22 +198,53 @@ func main() {
 			userMessage := inputField.GetText()
 			stack.insertUserMessage(userMessage)
 
+			inputField.SetText("...")
+			inputField.SetDisabled(true)
+
 			// Display user's message in chatTracking
 			chatTracking.SetText(chatTracking.GetText(true) + "\n[::b]User::[-] " + userMessage)
 
-			// Send user's message to the API and get the response
-			response, _ := getChatCompletion(stack.getAllMessages(), *GetService("gpt-4", "gpt-4"))
+			// Use a goroutine to make the API call asynchronously
+			go func() {
+				// Send user's message to the API and get the response
+				response, _ := getChatCompletion(stack.getAllMessages(), *GetService("gpt-4", "gpt-4"))
 
-			stack.insertAssistantMessage(response)
+				stack.insertAssistantMessage(response)
 
-			// Display API's response in chatTracking
-			chatTracking.SetText(chatTracking.GetText(true) + "\n[::b]Assistant::[-] " + response)
+				// Update the UI in the main goroutine
+				app.QueueUpdateDraw(func() {
+					// Display API's response in chatTracking
+					chatTracking.SetText(chatTracking.GetText(true) + "\n[::b]Assistant::[-] " + response)
 
-			// Clear the inputField
-			inputField.SetText("")
+					// Clear the inputField and enable it
+					inputField.SetText("")
+					inputField.SetDisabled(false)
+
+					// Scroll to the end of chatTracking after adding a new message
+					chatTracking.ScrollToEnd()
+
+					// Update the backend services display after making a request
+					backendServices.SetText(updateBackendServicesDisplay())
+				})
+			}()
 		}
 	})
 
+	// Populate the trackedFiles pane with files and their status
+	for _, file := range listFiles() {
+		status := getFileStatus(file)
+		if status != "" {
+			trackedFiles.AddItem(file+" ("+status+")", "", 0, nil)
+		} else {
+			trackedFiles.AddItem(file, "", 0, nil)
+		}
+	}
+
+	// Set the latest git commit message
+	gitCommit.SetText(getLatestGitCommit())
+
+	// Update the backend services display
+	backendServices.SetText(updateBackendServicesDisplay())
 	app.SetFocus(inputField)
 
 	if err := app.SetRoot(grid, true).Run(); err != nil {
