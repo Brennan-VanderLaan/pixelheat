@@ -55,6 +55,20 @@ func getFileStatus(filename string) string {
 	return strings.TrimSpace(string(output))
 }
 
+// DetermineColorBasedOnStatus returns the color for the file based on its status.
+func DetermineColorBasedOnStatus(status string) tcell.Color {
+	switch {
+	case status == "":
+		return tcell.ColorGreen // Tracked
+	case strings.HasPrefix(status, "M"):
+		return tcell.ColorYellow // Modified
+	case strings.HasPrefix(status, "??"):
+		return tcell.ColorRed // Untracked
+	default:
+		return tcell.ColorWhite // Default color for any other status
+	}
+}
+
 func updateBackendServicesDisplay() string {
 	var servicesStr string
 	for _, model := range models {
@@ -158,8 +172,11 @@ func main() {
 	// Create panes with borders
 	gitCommit := tview.NewTextView()
 	gitCommit.SetText("Git Commit: ...").SetBorder(true).SetTitle("Git Commit")
-	trackedFiles := tview.NewList()
-	trackedFiles.ShowSecondaryText(true).SetBorder(true).SetTitle("Tracked Files")
+	trackedFiles := tview.NewTreeView()
+
+	// Create a root node
+	root := tview.NewTreeNode("Project Files").SetColor(tcell.ColorWhite)
+	trackedFiles.SetRoot(root).SetCurrentNode(root)
 
 	// Backend Services with API Requests displayed side by side
 	backendServices := tview.NewTextView().SetDynamicColors(true)
@@ -230,13 +247,16 @@ func main() {
 		}
 	})
 
-	// Populate the trackedFiles pane with files and their status
+	// Populate the TreeView with files and their status
 	for _, file := range listFiles() {
 		status := getFileStatus(file)
+		color := DetermineColorBasedOnStatus(status)
 		if status != "" {
-			trackedFiles.AddItem(file+" ("+status+")", "", 0, nil)
+			node := tview.NewTreeNode(file + " (" + status + ")").SetColor(color)
+			root.AddChild(node)
 		} else {
-			trackedFiles.AddItem(file, "", 0, nil)
+			node := tview.NewTreeNode(file).SetColor(color)
+			root.AddChild(node)
 		}
 	}
 
@@ -245,7 +265,29 @@ func main() {
 
 	// Update the backend services display
 	backendServices.SetText(updateBackendServicesDisplay())
-	app.SetFocus(inputField)
+
+	// Create a slice of focusable primitives.
+	focusablePrimitives := []tview.Primitive{inputField, trackedFiles}
+
+	// Create a variable to keep track of the currently focused primitive.
+	var currentFocus int
+
+	// Set the initial focus.
+	app.SetFocus(focusablePrimitives[currentFocus])
+
+	// Capture user input to switch focus.
+	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Capture the Tab key to switch focus.
+		if event.Key() == tcell.KeyTab {
+			// Increment the current focus index, wrapping around if necessary.
+			currentFocus = (currentFocus + 1) % len(focusablePrimitives)
+			// Set the new focus.
+			app.SetFocus(focusablePrimitives[currentFocus])
+			return nil // Don't propagate the handled event.
+		}
+		// Propagate all other events.
+		return event
+	})
 
 	if err := app.SetRoot(grid, true).Run(); err != nil {
 		panic(err)
