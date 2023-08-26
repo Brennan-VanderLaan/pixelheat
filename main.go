@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/rivo/tview"
 )
 
 const openaiURL = "https://api.openai.com/v1/chat/completions"
@@ -77,12 +79,45 @@ func getChatCompletion(messages []Message) string {
 }
 
 func main() {
-	messages := []Message{
-		{
-			Role:    "system",
-			Content: "You are helping gather some information from the user.",
-		},
-	}
+	app := tview.NewApplication()
 
-	fmt.Println(getChatCompletion(messages))
+	// Title bar
+	titleBar := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetText("Your Application Name")
+	titleBar.SetBorderPadding(1, 1, 2, 2) // Adjust padding as needed
+
+	// Create panes with borders
+	gitCommit := tview.NewTextView().SetText("Git Commit: ...").SetBorder(true).SetTitle("Git Commit")
+	trackedFiles := tview.NewList().ShowSecondaryText(true).SetBorder(true).SetTitle("Tracked Files")
+
+	// Backend Services with API Requests as secondary text
+	backendServices := tview.NewList().ShowSecondaryText(true)
+
+	// Sample data: You can replace this with actual data
+	services := []string{"Service A", "Service B", "Service C"}
+	apiRequestCounts := []int{120, 45, 89} // Sample API request counts for each service
+	for i, service := range services {
+		backendServices.AddItem(service, fmt.Sprintf("API Requests: %d", apiRequestCounts[i]), 0, nil)
+	}
+	backendServices.SetBorder(true).SetTitle("Backend Services")
+
+	// Layout
+	grid := tview.NewGrid().
+		SetRows(2, 3, 0).
+		SetColumns(30, 0, 30).
+		AddItem(titleBar, 0, 0, 1, 3, 0, 0, false). // Span the title bar across the entire width
+		AddItem(gitCommit, 1, 0, 1, 1, 0, 0, false).
+		AddItem(trackedFiles, 1, 1, 1, 2, 0, 0, false).
+		AddItem(backendServices, 2, 0, 1, 3, 0, 0, false) // Span the backend services across the entire width
+
+	if err := app.SetRoot(grid, true).Run(); err != nil {
+		panic(err)
+	}
 }
+
+// func main() {
+// 	stack := &MessageStack{}
+// 	stack.insertSystemMessage("You are a helpful assistant.")
+// 	stack.insertUserMessage("Hello, I need help with my computer.")
+
+// 	fmt.Println(getChatCompletion(stack.getAllMessages()))
+// }
