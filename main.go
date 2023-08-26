@@ -19,71 +19,64 @@ type Message struct {
 	Content string `json:"content"`
 }
 
+func checkError(err error, msg string) {
+	if err != nil {
+		log.Fatalf("%s: %v", msg, err)
+	}
+}
+
 func getChatCompletion(messages []Message) string {
-	reqBody, err := json.Marshal(map[string]interface{}{
+	data := map[string]interface{}{
 		"model":       "gpt-4",
 		"messages":    messages,
 		"temperature": 0.7,
-	})
-	if err != nil {
-		log.Fatalf("Error encoding data: %v", err)
 	}
+
+	reqBody, err := json.Marshal(data)
+	checkError(err, "Error encoding data")
 
 	req, err := http.NewRequest("POST", openaiURL, bytes.NewBuffer(reqBody))
-	if err != nil {
-		log.Fatalf("Error creating request: %v", err)
-	}
+	checkError(err, "Error creating request")
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", openaiAPIKey))
+	req.Header.Set("Authorization", "Bearer "+openaiAPIKey)
 
 	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Fatalf("Error making request: %v", err)
-	}
+	checkError(err, "Error making request")
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		log.Fatalf("Received %d status from API: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalf("Error reading response body: %v", err)
+		log.Fatalf("Received %d status from API: %s", resp.StatusCode, bodyBytes)
 	}
 
 	var result map[string]interface{}
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	checkError(err, "Error reading response body")
+
 	err = json.Unmarshal(bodyBytes, &result)
-	if err != nil {
-		log.Fatalf("Error decoding response: %v", err)
-	}
+	checkError(err, "Error decoding response")
 
 	choices, ok := result["choices"].([]interface{})
 	if !ok || len(choices) == 0 {
-		log.Fatalf("Unexpected format: 'choices' missing or not an array")
+		log.Fatal("Unexpected format: 'choices' missing or not an array")
 	}
 
 	choice, ok := choices[0].(map[string]interface{})
-	if !ok {
-		log.Fatalf("Unexpected format: choice[0] not a map")
-	}
+	checkError(err, "Unexpected format: choice[0] not a map")
 
 	message, ok := choice["message"].(map[string]interface{})
-	if !ok {
-		log.Fatalf("Unexpected format: 'message' not a map")
-	}
+	checkError(err, "Unexpected format: 'message' not a map")
 
 	content, ok := message["content"].(string)
 	if !ok {
-		log.Fatalf("Unexpected format: 'content' not a string")
+		log.Fatal("Unexpected format: 'content' not a string")
 	}
 
 	return content
 }
 
 func main() {
-	// Example usage of getChatCompletion
 	messages := []Message{
 		{
 			Role:    "system",
@@ -91,6 +84,5 @@ func main() {
 		},
 	}
 
-	response := getChatCompletion(messages)
-	fmt.Println(response)
+	fmt.Println(getChatCompletion(messages))
 }
