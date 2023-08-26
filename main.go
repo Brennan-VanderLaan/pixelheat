@@ -120,7 +120,7 @@ func main() {
 
 	// Input field for user input
 	inputField := tview.NewInputField()
-	inputField.SetLabel("Enter Message: ").SetText("Text").SetDisabled(false)
+	inputField.SetLabel("Enter Message: ").SetText("").SetDisabled(false)
 
 	// Layout
 	// row int, column int, rowSpan int, colSpan int, minGridHeight int, minGridWidth int,
@@ -161,11 +161,3 @@ func main() {
 		panic(err)
 	}
 }
-
-// func main() {
-// 	stack := &MessageStack{}
-// 	stack.insertSystemMessage("You are a helpful assistant.")
-// 	stack.insertUserMessage("Hello, I need help with my computer.")
-
-// 	fmt.Println(getChatCompletion(stack.getAllMessages(), *GetService("gpt-4", "gpt-4")))
-// }

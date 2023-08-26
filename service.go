@@ -1,18 +1,22 @@
+// Package main provides a collection of models and services for natural language processing.
 package main
 
+// Service represents a natural language processing service.
 type Service struct {
-	ModelName    string
-	Context      int
-	InputCost    float64
-	OutputCost   float64
-	TrainingCost float64 // Only for fine-tuning models
+	ModelName    string  // The name of the model used for the service.
+	Context      int     // The context size of the model.
+	InputCost    float64 // The cost of input for the service.
+	OutputCost   float64 // The cost of output for the service.
+	TrainingCost float64 // The cost of training the model for the service. Only applicable for fine-tuning models.
 }
 
+// ModelType represents a type of natural language processing model.
 type ModelType struct {
-	Name     string
-	Services []Service
+	Name     string    // The name of the model type.
+	Services []Service // The services provided by the model type.
 }
 
+// models is a collection of natural language processing models.
 var models = []ModelType{
 	{
 		Name: "gpt-4",
@@ -55,7 +59,7 @@ var models = []ModelType{
 	// ... Add Image models similarly
 }
 
-// Example function to get the cost of a specific model and context
+// GetServiceCost returns the input and output cost of a specific natural language processing service.
 func GetServiceCost(modelName, context string) (float64, float64) {
 	for _, model := range models {
 		if model.Name == modelName {
@@ -69,6 +73,7 @@ func GetServiceCost(modelName, context string) (float64, float64) {
 	return 0, 0 // Return 0 if the model or context is not found
 }
 
+// GetService returns a pointer to a specific natural language processing service.
 func GetService(modelName, context string) *Service {
 	for _, model := range models {
 		if model.Name == modelName {
