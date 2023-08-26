@@ -64,10 +64,10 @@ func getChatCompletion(messages []Message, service Service) (string, float64) {
 		log.Fatal("Unexpected format: 'choices' missing or not an array")
 	}
 
-	choice, ok := choices[0].(map[string]interface{})
+	choice, _ := choices[0].(map[string]interface{})
 	checkError(err, "Unexpected format: choice[0] not a map")
 
-	message, ok := choice["message"].(map[string]interface{})
+	message, _ := choice["message"].(map[string]interface{})
 	checkError(err, "Unexpected format: 'message' not a map")
 
 	content, ok := message["content"].(string)
