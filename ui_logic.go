@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -45,12 +46,11 @@ func NewUI(stack *MessageStack) *UI {
 	}
 
 	ui.TitleBar.SetTextAlign(tview.AlignCenter).SetText("[pixelheat] Assisted Hallucinator")
-	ui.ChatTracking.SetDynamicColors(true).SetBorder(true).SetTitle("Chat Tracking")
-	ui.BackendServices.SetDynamicColors(true).SetBorder(true).SetTitle("Backend Services")
+	ui.BackendServices.SetDynamicColors(true).SetBorder(true).SetTitle(" Backend Services ")
 	ui.TitleBar.SetBorderPadding(1, 1, 2, 2) // Adjust padding as needed
 
 	// Create panes with borders
-	ui.GitCommit.SetText("...").SetBorder(true).SetTitle("Git Commit")
+	ui.GitCommit.SetText("...").SetBorder(true).SetTitle(" Git Commit ")
 
 	// Create a root node for each of the trees
 	ui.FileRoot.SetColor(tcell.ColorWhite)
@@ -59,12 +59,12 @@ func NewUI(stack *MessageStack) *UI {
 	ui.AIView.SetRoot(ui.AIViewRoot).SetCurrentNode(ui.AIViewRoot)
 
 	// Chat tracking pane
-	ui.ChatTracking.SetDynamicColors(true).SetBorder(true).SetTitle("Chat Tracking")
+	ui.ChatTracking.SetDynamicColors(true).SetBorder(true).SetTitle(" Chat Tracking ")
 	ui.ChatTracking.SetScrollable(true)
 
 	// Input field for user input
 	ui.InputField.SetBorder(true)
-	ui.InputField.SetTitle("Enter Message")
+	ui.InputField.SetTitle(" Human Input (Shift-F2 to send) ")
 	ui.InputField.SetPlaceholder("Enter your message here...\nPress Shift-F2 to send.")
 
 	// Create a slice of focusable primitives.
@@ -89,6 +89,15 @@ func NewUI(stack *MessageStack) *UI {
 		AddItem(ui.InputField, 5, 1, 1, 2, 0, 0, true)
 
 	ui.Draw()
+
+	ticker := time.NewTicker(time.Millisecond * 1000)
+	go func() {
+		for range ticker.C {
+			ui.App.QueueUpdateDraw(func() {
+				ui.Draw()
+			})
+		}
+	}()
 
 	if err := ui.App.SetRoot(ui.Grid, true).Run(); err != nil {
 		panic(err)
@@ -267,28 +276,87 @@ func (ui *UI) UpdateInputField() {
 // UpdateTrackedFiles updates the tracked files tree view
 func (ui *UI) UpdateTrackedFiles() {
 	for _, file := range listFiles() {
-		status := getFileStatus(file)
-		node := tview.NewTreeNode(file)
-		if status != "" {
-			node.SetText(file)
+
+		foundMatch := false
+		matchingNode := &tview.TreeNode{}
+		for _, existingNode := range ui.FileRoot.GetChildren() {
+			if existingNode.GetText() == file {
+				foundMatch = true
+				matchingNode = existingNode
+				break
+			} else {
+				continue
+			}
 		}
-		node.SetColor(DetermineColorBasedOnStatus(status))
-		ui.FileRoot.AddChild(node)
-		fileNode := &FileNode{Name: file, Status: status, Active: false}
-		fileNodes = append(fileNodes, fileNode)
-		node.SetReference(fileNode) // Store the FileNode as a reference in the TreeNode
+
+		if !foundMatch {
+			// We haven't seen this file yet, make a new node
+			status := getFileStatus(file)
+			node := tview.NewTreeNode(file)
+			if status != "" {
+				node.SetText(file)
+			}
+			node.SetColor(DetermineColorBasedOnStatus(status))
+			ui.FileRoot.AddChild(node)
+			fileNode := &FileNode{Name: file, Status: status, Active: false}
+			fileNodes = append(fileNodes, fileNode)
+			node.SetReference(fileNode) // Store the FileNode as a reference in the TreeNode
+		} else {
+			status := getFileStatus(file)
+			matchingNode.SetText(file)
+			matchingNode.SetColor(DetermineColorBasedOnStatus(status))
+
+		}
 	}
+
+	for _, existingNode := range ui.FileRoot.GetChildren() {
+		foundMatch := false
+		for _, file := range listFiles() {
+			if existingNode.GetText() == file {
+				foundMatch = true
+				break
+			} else {
+				continue
+			}
+		}
+
+		if !foundMatch {
+			// We have a node that doesn't match any files, remove it
+			ui.FileRoot.RemoveChild(existingNode)
+		}
+	}
+
 }
 
 // UpdateAIView updates the AI view tree view
 func (ui *UI) UpdateAIView() {
-	for _, agent := range aiAgents {
-		agentNode := tview.NewTreeNode(agent.Name).SetColor(tcell.ColorWhite)
-		ui.AIViewRoot.AddChild(agentNode)
 
+	for _, agent := range aiAgents {
+
+		foundMatch := false
+		matchingAgent := &tview.TreeNode{}
+		for _, existingNode := range ui.AIViewRoot.GetChildren() {
+			if existingNode.GetText() == agent.Name {
+				foundMatch = true
+				matchingAgent = existingNode
+				break
+			} else {
+				continue
+			}
+		}
+
+		if !foundMatch {
+			// We haven't seen this agent yet, make a new node
+			agentNode := tview.NewTreeNode(agent.Name).SetColor(tcell.ColorWhite)
+			ui.AIViewRoot.AddChild(agentNode)
+			matchingAgent = agentNode
+
+		}
+
+		matchingAgent.ClearChildren()
 		for _, service := range agent.Services {
-			serviceNode := tview.NewTreeNode(service.ModelName).SetColor(tcell.ColorWhite)
-			agentNode.AddChild(serviceNode)
+			serviceNode := tview.NewTreeNode(service.ModelName).SetColor(tcell.ColorCadetBlue)
+			matchingAgent.AddChild(serviceNode)
 		}
 	}
 
