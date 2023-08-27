@@ -70,6 +70,7 @@ func NewUI(stack *MessageStack) *UI {
 	// Create a slice of focusable primitives.
 	ui.AddPrimitive(ui.InputField)
 	ui.AddPrimitive(ui.TrackedFiles)
+	ui.AddPrimitive(ui.AIView)
 	ui.SetupKeybinds(stack)
 
 	// Layout
