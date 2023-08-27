@@ -218,12 +218,13 @@ func main() {
 	chatTracking.SetScrollable(true)
 
 	// Input field for user input
-	inputField := tview.NewInputField()
-	inputField.SetLabel("Enter Message: ").SetText("").SetDisabled(false)
+	// Input field for user input
+	inputField := tview.NewTextArea()
+	inputField.SetBorder(true)
+	inputField.SetTitle("Enter Message")
+	inputField.SetPlaceholder("Enter your message here...\nPress Ctrl+Enter to send.")
 
 	// Layout
-
-	// row int, column int, rowSpan int, colSpan int, minGridHeight int, minGridWidth int,
 	grid := tview.NewGrid().
 		//     t git chat ai input
 		SetRows(3, 4, 0, 0, 4). // Rows remain unchanged
@@ -235,12 +236,11 @@ func main() {
 		AddItem(trackedFiles, 2, 0, 1, 1, 0, 0, false).
 		//                   r  c  rs cs mh mw
 		AddItem(aiAgentView, 3, 0, 1, 1, 0, 0, false).
-		AddItem(chatTracking, 3, 1, 1, 3, 0, 0, false).
-		AddItem(inputField, 4, 1, 1, 2, 0, 0, true)
+		AddItem(chatTracking, 2, 1, 3, 2, 0, 0, false).
+		AddItem(inputField, 5, 1, 1, 2, 0, 0, true)
 
-	inputField.SetDoneFunc(func(key tcell.Key) {
-		if key == tcell.KeyEnter {
-
+	inputField.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEnter && event.Modifiers() == tcell.ModCtrl {
 			//Clear the old messages
 			stack.clearMessagesByRole("system")
 			stack.insertSystemMessage("You are a meta application for helping building other applications. You are helping the user with whatever content they have selected. Follow best practices for the content you are helping with. Ask questions when neccessary.")
@@ -260,7 +260,7 @@ func main() {
 			userMessage := inputField.GetText()
 			stack.insertUserMessage(userMessage)
 
-			inputField.SetText("...")
+			inputField.SetText("", false)
 			inputField.SetDisabled(true)
 
 			// Display user's message in chatTracking
@@ -279,7 +279,7 @@ func main() {
 					chatTracking.SetText(chatTracking.GetText(true) + "\n[::b]Assistant::[-] " + response)
 
 					// Clear the inputField and enable it
-					inputField.SetText("")
+					inputField.SetText("", false)
 					inputField.SetDisabled(false)
 
 					// Scroll to the end of chatTracking after adding a new message
@@ -293,6 +293,8 @@ func main() {
 				})
 			}()
 		}
+
+		return event
 	})
 
 	inputField.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -323,13 +325,23 @@ func main() {
 		node.SetReference(fileNode) // Store the FileNode as a reference in the TreeNode
 	}
 
+	for _, agent := range aiAgents {
+		agentNode := tview.NewTreeNode(agent.Name).SetColor(tcell.ColorWhite)
+		rootAI.AddChild(agentNode)
+
+		for _, service := range agent.Services {
+			serviceNode := tview.NewTreeNode(service.ModelName).SetColor(tcell.ColorWhite)
+			agentNode.AddChild(serviceNode)
+		}
+	}
+
 	trackedFiles.SetSelectedFunc(func(node *tview.TreeNode) {
 		ref := node.GetReference()
 		if ref == nil {
 			return
 		}
 		fileNode := ref.(*FileNode)
-		fileNode.Active = !fileNode.Active // Toggle the active state
+		fileNode.Active = !fileNode.Active // Toggle the active sta	te
 
 		// If the fileNode is active, add a child node with "*ACTIVE*"
 		// If the fileNode is not active, remove all child nodes (assuming it only has the "*ACTIVE*" node)
