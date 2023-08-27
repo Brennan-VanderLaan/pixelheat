@@ -8,35 +8,37 @@ type Service struct {
 	InputCost    float64 // The cost of input for the service.
 	OutputCost   float64 // The cost of output for the service.
 	TrainingCost float64 // The cost of training the model for the service. Only applicable for fine-tuning models.
+	InputTokens  int     // Total tokens processed for inputs
+	OutputTokens int     // Total tokens processed for outputs
 }
 
 // ModelType represents a type of natural language processing model.
 type ModelType struct {
-	Name     string    // The name of the model type.
-	Services []Service // The services provided by the model type.
+	Name     string     // The name of the model type.
+	Services []*Service // The services provided by the model type.
 }
 
 // models is a collection of natural language processing models.
 var models = []ModelType{
 	{
 		Name: "gpt-4",
-		Services: []Service{
-			{ModelName: "gpt-4", Context: 8192},
-			{ModelName: "gpt-4-0613", Context: 8192},
-			{ModelName: "gpt-4-32k", Context: 32768},
-			{ModelName: "gpt-4-32k-0613", Context: 32768},
-			{ModelName: "gpt-4-0314 (Legacy)", Context: 8192},
-			{ModelName: "gpt-4-32k-0314 (Legacy)", Context: 32768},
+		Services: []*Service{
+			{ModelName: "gpt-4", Context: 8192, InputCost: 0.03, OutputCost: 0.06},
+			{ModelName: "gpt-4-0613", Context: 8192, InputCost: 0.03, OutputCost: 0.06},
+			{ModelName: "gpt-4-32k", Context: 32768, InputCost: 0.06, OutputCost: 0.12},
+			{ModelName: "gpt-4-32k-0613", Context: 32768, InputCost: 0.06, OutputCost: 0.12},
+			{ModelName: "gpt-4-0314 (Legacy)", Context: 8192, InputCost: 0.03, OutputCost: 0.06},
+			{ModelName: "gpt-4-32k-0314 (Legacy)", Context: 32768, InputCost: 0.06, OutputCost: 0.12},
 		},
 	},
 	{
 		Name: "gpt-3.5",
-		Services: []Service{
-			{ModelName: "gpt-3.5-turbo", Context: 4096},
-			{ModelName: "gpt-3.5-turbo-16k", Context: 16384},
-			{ModelName: "gpt-3.5-turbo-0613", Context: 4096},
-			{ModelName: "gpt-3.5-turbo-16k-0613", Context: 16384},
-			{ModelName: "gpt-3.5-turbo-0301 (Legacy)", Context: 4096},
+		Services: []*Service{
+			{ModelName: "gpt-3.5-turbo", Context: 4096, InputCost: 0.0015, OutputCost: 0.002},
+			{ModelName: "gpt-3.5-turbo-16k", Context: 16384, InputCost: 0.003, OutputCost: 0.004},
+			{ModelName: "gpt-3.5-turbo-0613", Context: 4096, InputCost: 0.0015, OutputCost: 0.002},
+			{ModelName: "gpt-3.5-turbo-16k-0613", Context: 16384, InputCost: 0.003, OutputCost: 0.004},
+			{ModelName: "gpt-3.5-turbo-0301 (Legacy)", Context: 4096, InputCost: 0.0015, OutputCost: 0.002},
 			{ModelName: "text-davinci-003 (Legacy)", Context: 4097},
 			{ModelName: "text-davinci-002 (Legacy)", Context: 4097},
 			{ModelName: "code-davinci-002 (Legacy)", Context: 8001},
@@ -44,7 +46,7 @@ var models = []ModelType{
 	},
 	{
 		Name: "Fine-tuning models",
-		Services: []Service{
+		Services: []*Service{
 			{ModelName: "babbage-002", TrainingCost: 0.0004, InputCost: 0.0016, OutputCost: 0.0016},
 			{ModelName: "davinci-002", TrainingCost: 0.0060, InputCost: 0.0120, OutputCost: 0.0120},
 			{ModelName: "GPT-3.5 Turbo", TrainingCost: 0.0080, InputCost: 0.0120, OutputCost: 0.0160},
@@ -52,7 +54,7 @@ var models = []ModelType{
 	},
 	{
 		Name: "Embedding models",
-		Services: []Service{
+		Services: []*Service{
 			{ModelName: "Ada v2", InputCost: 0.0001},
 		},
 	},
@@ -79,7 +81,7 @@ func GetService(modelName, context string) *Service {
 		if model.Name == modelName {
 			for _, service := range model.Services {
 				if service.ModelName == context {
-					return &service
+					return service
 				}
 			}
 		}

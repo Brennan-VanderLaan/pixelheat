@@ -90,18 +90,13 @@ func updateBackendServicesDisplay() string {
 	for _, model := range models {
 		for _, service := range model.Services {
 			count := serviceUsage[service.ModelName]
-			cost := float64(count) * (service.InputCost + service.OutputCost) // Assuming cost is per request
+			cost := (float64(service.InputTokens)/1000)*(service.InputCost) + (float64(service.OutputTokens)/1000)*(service.OutputCost) // Assuming cost is per 1K tokens
 			if cost > 0 || count > 0 {
-				servicesStr += fmt.Sprintf("%s (API Requests: %d, Cost: $%.2f)   ", service.ModelName, count, cost)
+				servicesStr += fmt.Sprintf("%s [API Requests: %d, Cost: $%.2f (%d|%d)]   ", service.ModelName, count, cost, service.InputTokens, service.OutputTokens)
 			}
 		}
 	}
 	return servicesStr
-}
-
-type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
 }
 
 func checkError(err error, msg string) {
@@ -110,7 +105,7 @@ func checkError(err error, msg string) {
 	}
 }
 
-func getChatCompletion(messages []Message, service Service) (string, float64) {
+func getChatCompletion(messages []Message, service *Service) (string, float64) {
 	data := map[string]interface{}{
 		"model":       service.ModelName,
 		"messages":    messages,
@@ -158,20 +153,18 @@ func getChatCompletion(messages []Message, service Service) (string, float64) {
 		log.Fatal("Unexpected format: 'content' not a string")
 	}
 
-	// Calculate cost based on the number of tokens used (this is a simplified example)
-	// You might need to adjust this based on the exact response format from OpenAI
-	usage, ok := result["usage"].(map[string]interface{})
-	if !ok {
-		log.Fatal("Unexpected format: 'usage' not a map")
+	// Calculate cost based on the number of characters used
+	totalCharacters := 0
+	for _, msg := range messages {
+		totalCharacters += len(msg.Content)
 	}
-	totalTokens, ok := usage["total_tokens"].(float64)
-	if !ok {
-		log.Fatal("Unexpected format: 'total_tokens' not a number")
-	}
-	cost := totalTokens / 1000 * (service.InputCost + service.OutputCost) // Assuming cost is per 1K tokens
+	totalTokens := float64(totalCharacters) / 4.0    // 1 token is approximately 4 characters
+	cost := totalTokens / 1000 * (service.InputCost) // Assuming cost is per 1K tokens
 
-	// Increment the service usage count
+	// Increment the service usage count and total tokens processed
 	serviceUsage[service.ModelName]++
+	service.InputTokens += int(totalTokens)
+	service.OutputTokens += len(content) / 4
 
 	return content, cost
 }
@@ -180,6 +173,8 @@ func main() {
 	app := tview.NewApplication()
 
 	stack := &MessageStack{}
+
+	showFormattedText := true
 
 	// Title bar
 	titleBar := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetText("[titiw] Tape It Till It Works")
@@ -230,6 +225,10 @@ func main() {
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
 
+			//Clear the old messages
+			stack.clearMessagesByRole("system")
+			stack.insertSystemMessage("You are a meta application for helping building other applications. You are helping the user with whatever content they have selected. Follow best practices for the content you are helping with. Ask questions when neccessary.")
+
 			// Insert contents of active files as new messages
 			for _, fileNode := range fileNodes {
 				if fileNode.Active {
@@ -254,7 +253,7 @@ func main() {
 			// Use a goroutine to make the API call asynchronously
 			go func() {
 				// Send user's message to the API and get the response
-				response, _ := getChatCompletion(stack.getAllMessages(), *GetService("gpt-4", "gpt-4"))
+				response, _ := getChatCompletion(stack.getAllMessages(), GetService("gpt-4", "gpt-4"))
 
 				stack.insertAssistantMessage(response)
 
@@ -345,13 +344,25 @@ func main() {
 	// Capture user input to switch focus.
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Capture the Tab key to switch focus.
-		if event.Key() == tcell.KeyTab {
+		if (event.Key() == tcell.KeyTab) && showFormattedText {
 			// Increment the current focus index, wrapping around if necessary.
 			currentFocus = (currentFocus + 1) % len(focusablePrimitives)
 			// Set the new focus.
 			app.SetFocus(focusablePrimitives[currentFocus])
 			return nil // Don't propagate the handled event.
 		}
+
+		if event.Key() == tcell.KeyF1 && event.Modifiers() == tcell.ModShift {
+			showFormattedText = !showFormattedText
+			if showFormattedText {
+				app.SetRoot(grid, true)
+			} else {
+				plainTextView := tview.NewTextView().SetText(stack.getPlainText())
+				app.SetRoot(plainTextView, true)
+			}
+			return nil
+		}
+
 		// Propagate all other events.
 		return event
 	})

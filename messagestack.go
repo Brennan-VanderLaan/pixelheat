@@ -5,6 +5,11 @@ type MessageStack struct {
 	messages []Message
 }
 
+type Message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
 // setMessages sets the messages in the stack.
 func (ms *MessageStack) setMessages(messages []Message) {
 	ms.messages = messages
@@ -48,6 +53,51 @@ func (ms *MessageStack) getAllSystemMessages() []Message {
 // getAllMessages returns all messages in the stack.
 func (ms *MessageStack) getAllMessages() []Message {
 	return ms.messages
+}
+
+// getFormattedText returns the formatted text representation of the messages.
+func (ms *MessageStack) getFormattedText() string {
+	var formattedText string
+	for _, msg := range ms.messages {
+		switch msg.Role {
+		case "user":
+			formattedText += "[::b]User::[-] " + msg.Content + "\n"
+		case "assistant":
+			formattedText += "[::b]Assistant::[-] " + msg.Content + "\n"
+		case "system":
+			formattedText += "[::b]System::[-] " + msg.Content + "\n"
+		}
+	}
+	return formattedText
+}
+
+// getPlainText returns the plain text representation of the messages.
+func (ms *MessageStack) getPlainText() string {
+	var plainText string
+	for _, msg := range ms.messages {
+		switch msg.Role {
+		case "user":
+			plainText += "User: " + msg.Content + "\n"
+		case "assistant":
+			plainText += "Assistant: " + msg.Content + "\n"
+		case "system":
+			//plainText += "System: " + msg.Content + "\n"
+		}
+	}
+	return plainText
+}
+
+// clearMessagesByRole returns all messages in the stack with the specified role.
+func (ms *MessageStack) clearMessagesByRole(role string) []Message {
+	var filteredMessages []Message
+	for _, msg := range ms.messages {
+		if msg.Role != role {
+			filteredMessages = append(filteredMessages, msg)
+		}
+	}
+
+	ms.messages = filteredMessages
+	return filteredMessages
 }
 
 // getMessagesByRole returns all messages in the stack with the specified role.
