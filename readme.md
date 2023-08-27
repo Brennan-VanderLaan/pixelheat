@@ -1,4 +1,4 @@
-# PixelHeat - The Experimental Assisted Hallucinator
+# PixelHeat - Assisted Hallucinator
 
 ![Humor Level 42%](https://img.shields.io/badge/Humor%20Level-42%25-brightgreen)
 ![Days Since AI Broke Something 0](https://img.shields.io/badge/Days%20Since%20AI%20Broke%20Something-0-red)
@@ -18,8 +18,9 @@ as nice :)
 Please note that this is an experimental project. It's not meant to be taken too seriously – it's a fun exploration of AI possibilities. The majority of this project is written by AI, including this Readme.md, which means there will inevitably be some quirks and unexpected behavior.
 
 ## Future Work
-We are currently working towards expanding the capabilities of PixelHeat, with future updates aiming to include:
+Currently working towards expanding the capabilities of PixelHeat, with future updates aiming to include:
 * Enhanced interactions with multiple AI agents
+* Interact with arbitrary models
 * Advanced local file editing capabilities
 * Automated Git commit and PR review preparation
 
@@ -31,4 +32,6 @@ Input your task and PixelHeat will delegate it to the appropriate AI agent. You'
 OPENAI_KEY=<key> ./pixelheat
 ```
 
-Shift-F1 to switch to clean text output for copying
+- Shift-F1 to switch to clean text output for copying
+- Tab to switch inputs
+- when selecting files hit enter / space to activate them for inference
