@@ -44,7 +44,7 @@ func NewUI(stack *MessageStack) *UI {
 		BackendServices:   tview.NewTextView(),
 		ChatTracking:      tview.NewTextView(),
 		InputField:        tview.NewTextArea(),
-		FileRoot:          tview.NewTreeNode("Project Files"),
+		FileRoot:          tview.NewTreeNode("./"),
 		AIViewRoot:        tview.NewTreeNode("AI Agents"),
 		aiAgentNodes:      []*AIAgentNode{},
 		CurrentFocus:      0,
@@ -62,8 +62,13 @@ func NewUI(stack *MessageStack) *UI {
 	// Create a root node for each of the trees
 	ui.FileRoot.SetColor(tcell.ColorWhite)
 	ui.AIViewRoot.SetColor(tcell.ColorWhite)
-	ui.TrackedFiles.SetRoot(ui.FileRoot).SetCurrentNode(ui.FileRoot)
-	ui.AIView.SetRoot(ui.AIViewRoot).SetCurrentNode(ui.AIViewRoot)
+	ui.TrackedFiles.SetRoot(ui.FileRoot).
+		SetCurrentNode(ui.FileRoot).
+		SetBorder(true).
+		SetTitle(" Tracked Files ")
+	ui.AIView.SetRoot(ui.AIViewRoot).
+		SetCurrentNode(ui.AIViewRoot).
+		SetBorder(false)
 
 	// Chat tracking pane
 	ui.ChatTracking.SetDynamicColors(true).SetBorder(true).SetTitle(" Chat Tracking ")
@@ -89,9 +94,9 @@ func NewUI(stack *MessageStack) *UI {
 		AddItem(ui.TitleBar, 0, 0, 1, 3, 0, 0, false).
 		AddItem(ui.GitCommit, 1, 0, 1, 1, 0, 0, false).
 		AddItem(ui.BackendServices, 1, 1, 1, 2, 0, 0, false).
-		AddItem(ui.TrackedFiles, 2, 0, 1, 1, 0, 0, false).
+		AddItem(ui.TrackedFiles, 2, 0, 2, 1, 0, 0, false).
 		//                 r  c  rs cs mh mw
-		AddItem(ui.AIView, 3, 0, 1, 1, 0, 0, false).
+		AddItem(ui.AIView, 4, 0, 2, 1, 0, 0, false).
 		AddItem(ui.ChatTracking, 2, 1, 3, 2, 0, 0, false).
 		AddItem(ui.InputField, 5, 1, 1, 2, 0, 0, true)
 
