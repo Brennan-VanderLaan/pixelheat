@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -343,7 +344,12 @@ func (ui *UI) UpdateTrackedFiles() {
 			status := getFileStatus(file)
 			matchingNode.SetText(file)
 			matchingNode.SetColor(DetermineColorBasedOnStatus(status))
-
+			for _, child := range matchingNode.GetChildren() {
+				//update token size
+				if strings.HasPrefix(child.GetText(), "*ACTIVE*") {
+					child.SetText(fmt.Sprintf("*ACTIVE* (%d)", getTokens(file)))
+				}
+			}
 		}
 	}
 
