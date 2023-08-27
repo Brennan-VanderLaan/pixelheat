@@ -22,6 +22,14 @@ var openaiAPIKey = os.Getenv("OPENAI_KEY")
 // ServiceUsage tracks the number of API requests made for each service.
 var serviceUsage = make(map[string]int)
 
+type FileNode struct {
+	Name   string
+	Status string
+	Active bool
+}
+
+var fileNodes []*FileNode
+
 func listFiles() []string {
 	files, err := ioutil.ReadDir(".")
 	if err != nil {
@@ -35,6 +43,14 @@ func listFiles() []string {
 		}
 	}
 	return filenames
+}
+
+func readFileContents(filename string) (string, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 func getLatestGitCommit() string {
@@ -213,6 +229,19 @@ func main() {
 
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
+
+			// Insert contents of active files as new messages
+			for _, fileNode := range fileNodes {
+				if fileNode.Active {
+					content, err := readFileContents(fileNode.Name)
+					if err != nil {
+						log.Printf("Error reading file %s: %v", fileNode.Name, err)
+						continue
+					}
+					stack.insertSystemMessage(fmt.Sprintf("File: %s\nContent:\n%s", fileNode.Name, content))
+				}
+			}
+
 			userMessage := inputField.GetText()
 			stack.insertUserMessage(userMessage)
 
@@ -243,23 +272,60 @@ func main() {
 
 					// Update the backend services display after making a request
 					backendServices.SetText(updateBackendServicesDisplay())
+
+					// Set the latest git commit message
+					gitCommit.SetText(getLatestGitCommit())
 				})
 			}()
 		}
 	})
 
-	// Populate the TreeView with files and their status
+	inputField.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		currentRow, _ := chatTracking.GetScrollOffset()
+		switch event.Key() {
+		case tcell.KeyUp:
+			if currentRow > 0 {
+				chatTracking.ScrollTo(currentRow-1, 0)
+			}
+			return nil // Don't propagate the handled event.
+		case tcell.KeyDown:
+			chatTracking.ScrollTo(currentRow+1, 0)
+			return nil // Don't propagate the handled event.
+		}
+		return event // Propagate all other events.
+	})
+
 	for _, file := range listFiles() {
 		status := getFileStatus(file)
-		color := DetermineColorBasedOnStatus(status)
+		node := tview.NewTreeNode(file)
 		if status != "" {
-			node := tview.NewTreeNode(file + " (" + status + ")").SetColor(color)
-			root.AddChild(node)
-		} else {
-			node := tview.NewTreeNode(file).SetColor(color)
-			root.AddChild(node)
+			node.SetText(file)
 		}
+		node.SetColor(DetermineColorBasedOnStatus(status))
+		root.AddChild(node)
+		fileNode := &FileNode{Name: file, Status: status, Active: false}
+		fileNodes = append(fileNodes, fileNode)
+		node.SetReference(fileNode) // Store the FileNode as a reference in the TreeNode
 	}
+
+	trackedFiles.SetSelectedFunc(func(node *tview.TreeNode) {
+		ref := node.GetReference()
+		if ref == nil {
+			return
+		}
+		fileNode := ref.(*FileNode)
+		fileNode.Active = !fileNode.Active // Toggle the active state
+
+		// Update the display based on the active state
+		if fileNode.Active {
+			node.SetColor(tcell.ColorBlue)
+			node.SetIndent(4)
+		} else {
+			color := DetermineColorBasedOnStatus(fileNode.Status)
+			node.SetColor(color)
+			node.SetIndent(2)
+		}
+	})
 
 	// Set the latest git commit message
 	gitCommit.SetText(getLatestGitCommit())
