@@ -1,4 +1,4 @@
-module docbot
+module pixelheat
 
 go 1.20
 
