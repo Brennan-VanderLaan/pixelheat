@@ -177,7 +177,7 @@ func main() {
 	showFormattedText := true
 
 	// Title bar
-	titleBar := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetText("[titiw] Tape It Till It Works")
+	titleBar := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetText("[pixelheat] Assisted Hallucinator")
 	titleBar.SetBorderPadding(1, 1, 2, 2) // Adjust padding as needed
 
 	// Create panes with borders
