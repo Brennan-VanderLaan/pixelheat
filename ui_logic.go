@@ -9,6 +9,11 @@ import (
 	"github.com/rivo/tview"
 )
 
+type AIAgentNode struct {
+	Name   string
+	Active bool
+}
+
 type UI struct {
 	App               *tview.Application
 	Grid              *tview.Grid
@@ -21,6 +26,7 @@ type UI struct {
 	InputField        *tview.TextArea
 	FileRoot          *tview.TreeNode
 	AIViewRoot        *tview.TreeNode
+	aiAgentNodes      []*AIAgentNode
 	CurrentFocus      int
 	Primitives        []tview.Primitive
 	ShowFormattedText bool
@@ -40,6 +46,7 @@ func NewUI(stack *MessageStack) *UI {
 		InputField:        tview.NewTextArea(),
 		FileRoot:          tview.NewTreeNode("Project Files"),
 		AIViewRoot:        tview.NewTreeNode("AI Agents"),
+		aiAgentNodes:      []*AIAgentNode{},
 		CurrentFocus:      0,
 		Primitives:        []tview.Primitive{},
 		ShowFormattedText: true,
@@ -161,6 +168,32 @@ func (ui *UI) SetupKeybinds(stack *MessageStack) {
 			}
 		}
 	})
+
+	ui.AIView.SetSelectedFunc(func(node *tview.TreeNode) {
+		ref := node.GetReference()
+		if ref == nil {
+			return
+		}
+		agentNode := ref.(*AIAgentNode)
+		agentNode.Active = !agentNode.Active // Toggle the active state
+
+		// If the agentNode is active, add a child node with "*ACTIVE*"
+		// If the agentNode is not active, remove all child nodes (assuming it only has the "*ACTIVE*" node)
+		if agentNode.Active {
+			// Add "*ACTIVE*" as a child node
+			activeNode := tview.NewTreeNode("*ACTIVE*")
+			activeNode.SetColor(tcell.ColorBlue)
+			node.AddChild(activeNode)
+		} else {
+			// Remove all child nodes
+			for _, child := range node.GetChildren() {
+				if child.GetText() == "*ACTIVE*" {
+					node.RemoveChild(child)
+				}
+			}
+		}
+	})
+
 }
 
 // AddPrimitive adds a primitive to the UI
@@ -328,11 +361,8 @@ func (ui *UI) UpdateTrackedFiles() {
 
 }
 
-// UpdateAIView updates the AI view tree view
 func (ui *UI) UpdateAIView() {
-
 	for _, agent := range aiAgents {
-
 		foundMatch := false
 		matchingAgent := &tview.TreeNode{}
 		for _, existingNode := range ui.AIViewRoot.GetChildren() {
@@ -340,24 +370,58 @@ func (ui *UI) UpdateAIView() {
 				foundMatch = true
 				matchingAgent = existingNode
 				break
-			} else {
-				continue
 			}
 		}
 
 		if !foundMatch {
 			// We haven't seen this agent yet, make a new node
-			agentNode := tview.NewTreeNode(agent.Name).SetColor(tcell.ColorWhite)
-			ui.AIViewRoot.AddChild(agentNode)
-			matchingAgent = agentNode
-
+			agentNode := &AIAgentNode{Name: agent.Name, Active: false}
+			ui.aiAgentNodes = append(ui.aiAgentNodes, agentNode)
+			matchingAgent = tview.NewTreeNode(agent.Name)
+			matchingAgent.SetColor(tcell.ColorWhite)
+			matchingAgent.SetReference(agentNode)
+			ui.AIViewRoot.AddChild(matchingAgent)
 		}
 
-		matchingAgent.ClearChildren()
 		for _, service := range agent.Services {
-			serviceNode := tview.NewTreeNode(service.ModelName).SetColor(tcell.ColorCadetBlue)
-			matchingAgent.AddChild(serviceNode)
+			foundService := false
+			for _, existingService := range matchingAgent.GetChildren() {
+				if existingService.GetText() == service.ModelName {
+					foundService = true
+					break
+				}
+			}
+
+			if !foundService {
+				// This service doesn't yet have a node, add it
+				serviceNode := tview.NewTreeNode(service.ModelName).SetColor(tcell.ColorCadetBlue)
+				matchingAgent.AddChild(serviceNode)
+			}
 		}
 	}
 
+	// Now, remove any agent nodes that are no longer in aiAgents
+	for _, existingNode := range ui.AIViewRoot.GetChildren() {
+		foundMatch := false
+		for _, agent := range aiAgents {
+			if existingNode.GetText() == agent.Name {
+				foundMatch = true
+				break
+			}
+		}
+
+		if !foundMatch {
+			// This node doesn't match any agent, remove it
+			ui.AIViewRoot.RemoveChild(existingNode)
+			// Also remove the corresponding AIAgentNode from ui.aiAgentNodes
+			for i, agentNode := range ui.aiAgentNodes {
+				if agentNode.Name == existingNode.GetText() {
+					// Remove the element at index i from ui.aiAgentNodes
+					ui.aiAgentNodes[i] = ui.aiAgentNodes[len(ui.aiAgentNodes)-1] // Copy the last element to index i
+					ui.aiAgentNodes = ui.aiAgentNodes[:len(ui.aiAgentNodes)-1]   // Truncate the slice
+					break
+				}
+			}
+		}
+	}
 }
