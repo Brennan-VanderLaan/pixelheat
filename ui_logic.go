@@ -413,15 +413,6 @@ func (ui *UI) UpdateAIView() {
 		if !foundMatch {
 			// This node doesn't match any agent, remove it
 			ui.AIViewRoot.RemoveChild(existingNode)
-			// Also remove the corresponding AIAgentNode from ui.aiAgentNodes
-			for i, agentNode := range ui.aiAgentNodes {
-				if agentNode.Name == existingNode.GetText() {
-					// Remove the element at index i from ui.aiAgentNodes
-					ui.aiAgentNodes[i] = ui.aiAgentNodes[len(ui.aiAgentNodes)-1] // Copy the last element to index i
-					ui.aiAgentNodes = ui.aiAgentNodes[:len(ui.aiAgentNodes)-1]   // Truncate the slice
-					break
-				}
-			}
 		}
 	}
 }
