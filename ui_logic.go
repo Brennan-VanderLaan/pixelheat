@@ -90,7 +90,7 @@ func NewUI(stack *MessageStack) *UI {
 		AddItem(ui.GitCommit, 1, 0, 1, 1, 0, 0, false).
 		AddItem(ui.BackendServices, 1, 1, 1, 2, 0, 0, false).
 		AddItem(ui.TrackedFiles, 2, 0, 1, 1, 0, 0, false).
-		//                   r  c  rs cs mh mw
+		//                 r  c  rs cs mh mw
 		AddItem(ui.AIView, 3, 0, 1, 1, 0, 0, false).
 		AddItem(ui.ChatTracking, 2, 1, 3, 2, 0, 0, false).
 		AddItem(ui.InputField, 5, 1, 1, 2, 0, 0, true)

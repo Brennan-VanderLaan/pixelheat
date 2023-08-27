@@ -58,7 +58,7 @@ func DetermineColorBasedOnStatus(status string) tcell.Color {
 	case strings.HasPrefix(status, "M"):
 		return tcell.ColorYellow // Modified
 	case strings.HasPrefix(status, "??"):
-		return tcell.ColorRed // Untracked
+		return tcell.ColorGray // Untracked
 	default:
 		return tcell.ColorWhite // Default color for any other status
 	}
