@@ -38,7 +38,7 @@ func listFiles() []string {
 }
 
 func getLatestGitCommit() string {
-	cmd := exec.Command("git", "log", "-1", "--pretty=%H %B")
+	cmd := exec.Command("git", "log", "-1", "--pretty=%h %B")
 	output, err := cmd.Output()
 	if err != nil {
 		return "Error fetching commit: " + err.Error()
@@ -166,7 +166,7 @@ func main() {
 	stack := &MessageStack{}
 
 	// Title bar
-	titleBar := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetText("Doc Bot")
+	titleBar := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetText("[titiw] Tape It Till It Works")
 	titleBar.SetBorderPadding(1, 1, 2, 2) // Adjust padding as needed
 
 	// Create panes with borders
@@ -199,6 +199,7 @@ func main() {
 	inputField.SetLabel("Enter Message: ").SetText("").SetDisabled(false)
 
 	// Layout
+
 	// row int, column int, rowSpan int, colSpan int, minGridHeight int, minGridWidth int,
 	grid := tview.NewGrid().
 		SetRows(3, 4, 0, 2).                        // Rows remain unchanged
