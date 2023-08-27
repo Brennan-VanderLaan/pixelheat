@@ -191,12 +191,15 @@ func main() {
 
 	// Create panes with borders
 	gitCommit := tview.NewTextView()
-	gitCommit.SetText("Git Commit: ...").SetBorder(true).SetTitle("Git Commit")
+	gitCommit.SetText("...").SetBorder(true).SetTitle("Git Commit")
 	trackedFiles := tview.NewTreeView()
 
 	// Create a root node
 	root := tview.NewTreeNode("Project Files").SetColor(tcell.ColorWhite)
 	trackedFiles.SetRoot(root).SetCurrentNode(root)
+
+	rootAI := tview.NewTreeNode("AI Agents").SetColor(tcell.ColorWhite)
+	aiAgentView := tview.NewTreeView().SetRoot(rootAI).SetCurrentNode(rootAI)
 
 	// Backend Services with API Requests displayed side by side
 	backendServices := tview.NewTextView().SetDynamicColors(true)
@@ -222,14 +225,18 @@ func main() {
 
 	// row int, column int, rowSpan int, colSpan int, minGridHeight int, minGridWidth int,
 	grid := tview.NewGrid().
-		SetRows(3, 4, 0, 2).                        // Rows remain unchanged
-		SetColumns(30, 30, 0).                      // Adjusted column widths
-		AddItem(titleBar, 0, 0, 1, 3, 0, 0, false). // Span the title bar across the entire width
+		//     t git chat ai input
+		SetRows(3, 4, 0, 0, 4). // Rows remain unchanged
+		SetColumns(30, 0, 0).   // Adjusted column widths
+		//                r  c  rs cs mh mw
+		AddItem(titleBar, 0, 0, 1, 3, 0, 0, false).
 		AddItem(gitCommit, 1, 0, 1, 1, 0, 0, false).
-		AddItem(backendServices, 1, 1, 1, 2, 0, 0, false). // Span backendServices across two columns
+		AddItem(backendServices, 1, 1, 1, 2, 0, 0, false).
 		AddItem(trackedFiles, 2, 0, 1, 1, 0, 0, false).
-		AddItem(chatTracking, 2, 1, 1, 2, 0, 0, false). // Span chatTracking across two columns
-		AddItem(inputField, 3, 1, 1, 2, 0, 0, true)     // Span the input field across two columns
+		//                   r  c  rs cs mh mw
+		AddItem(aiAgentView, 3, 0, 1, 1, 0, 0, false).
+		AddItem(chatTracking, 3, 1, 1, 3, 0, 0, false).
+		AddItem(inputField, 4, 1, 1, 2, 0, 0, true)
 
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
