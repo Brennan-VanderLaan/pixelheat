@@ -30,6 +30,15 @@ type FileNode struct {
 
 var fileNodes []*FileNode
 
+func getTokens(filename string) int {
+	content, err := readFileContents(filename)
+	if err != nil {
+		log.Printf("Error reading file %s: %v", filename, err)
+		return 0
+	}
+	return len(content) / 4
+}
+
 func listFiles() []string {
 	files, err := ioutil.ReadDir(".")
 	if err != nil {
@@ -315,14 +324,20 @@ func main() {
 		fileNode := ref.(*FileNode)
 		fileNode.Active = !fileNode.Active // Toggle the active state
 
-		// Update the display based on the active state
+		// If the fileNode is active, add a child node with "*ACTIVE*"
+		// If the fileNode is not active, remove all child nodes (assuming it only has the "*ACTIVE*" node)
 		if fileNode.Active {
-			node.SetColor(tcell.ColorBlue)
-			node.SetIndent(4)
+			// Add "*ACTIVE*" as a child node
+			activeNode := tview.NewTreeNode(fmt.Sprintf("*ACTIVE* (%d)", getTokens(fileNode.Name)))
+			activeNode.SetColor(tcell.ColorBlue)
+			node.AddChild(activeNode)
 		} else {
 			color := DetermineColorBasedOnStatus(fileNode.Status)
 			node.SetColor(color)
-			node.SetIndent(2)
+			// Remove all child nodes
+			for _, child := range node.GetChildren() {
+				node.RemoveChild(child)
+			}
 		}
 	})
 
