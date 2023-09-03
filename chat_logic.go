@@ -6,7 +6,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 )
+
+const openaiURL = "https://api.openai.com/v1/chat/completions"
+
+var openaiAPIKey = os.Getenv("OPENAI_KEY")
 
 func getChatCompletion(messages []Message, service *Service) (string, float64) {
 	data := map[string]interface{}{

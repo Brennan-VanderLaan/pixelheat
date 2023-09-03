@@ -9,6 +9,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	git "github.com/go-git/go-git/v5"
+	"github.com/rivo/tview"
 )
 
 func getTokens(filename string) int {
@@ -20,8 +21,18 @@ func getTokens(filename string) int {
 	return len(content) / 4
 }
 
-func listFiles() []string {
-	files, err := ioutil.ReadDir(".")
+func findChildNode(root *tview.TreeNode, condition func(*tview.TreeNode) bool) *tview.TreeNode {
+	for _, child := range root.GetChildren() {
+		if condition(child) {
+			return child
+		}
+	}
+	return nil
+}
+
+// listFiles returns a list of all files in the specified directory
+func listFiles(dir string) []string {
+	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -3,9 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"strings"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -54,17 +51,8 @@ func NewUI(stack *MessageStack) *UI {
 		ShowFormattedText: true,
 	}
 
-	// Get file names in the directory
-	fileNames := listFiles()
-
-	// Get current path
-	path, _ := os.Getwd()
-
-	// Get current date
-	date := time.Now()
-
 	// Generate a new title using AI
-	title := GenerateTitle(fileNames, path, date)
+	title := "Assisted Halucinations"
 
 	ui.TitleBar.SetTextAlign(tview.AlignCenter).SetText("[pixelheat] " + title)
 	ui.BackendServices.SetDynamicColors(true).SetBorder(true).SetTitle(" Backend Services ")
@@ -114,21 +102,7 @@ func NewUI(stack *MessageStack) *UI {
 		AddItem(ui.ChatTracking, 2, 1, 3, 2, 0, 0, false).
 		AddItem(ui.InputField, 5, 1, 1, 2, 0, 0, true)
 
-	ui.Draw()
-
-	ticker := time.NewTicker(time.Millisecond * 1000)
-	go func() {
-		for range ticker.C {
-			ui.App.QueueUpdateDraw(func() {
-				ui.Draw()
-			})
-		}
-	}()
-
-	if err := ui.App.SetRoot(ui.Grid, true).Run(); err != nil {
-		panic(err)
-	}
-
+	ui.App.SetRoot(ui.Grid, true)
 	return ui
 }
 
@@ -285,11 +259,13 @@ func (ui *UI) HandleInput(stack *MessageStack) {
 }
 
 // Draw draws the UI to the screen
-func (ui *UI) Draw() {
-	ui.UpdateAIView()
-	ui.UpdateTrackedFiles()
-	ui.UpdateGitCommit()
-	ui.UpdateBackendServices()
+func (ui *UI) Draw(core *Core) {
+	ui.App.QueueUpdateDraw(func() {
+		ui.UpdateAIView()
+		ui.UpdateTrackedFiles(core)
+		ui.UpdateGitCommit()
+		ui.UpdateBackendServices()
+	})
 }
 
 // UpdateGitCommit updates the git commit text view
@@ -326,63 +302,32 @@ func (ui *UI) UpdateInputField() {
 }
 
 // UpdateTrackedFiles updates the tracked files tree view
-func (ui *UI) UpdateTrackedFiles() {
-	for _, file := range listFiles() {
+func (ui *UI) UpdateTrackedFiles(core *Core) {
+	activeFiles := core.GetActiveFiles()
 
-		foundMatch := false
-		matchingNode := &tview.TreeNode{}
-		for _, existingNode := range ui.FileRoot.GetChildren() {
-			if existingNode.GetText() == file {
-				foundMatch = true
-				matchingNode = existingNode
-				break
-			} else {
-				continue
+	for _, fileNode := range activeFiles {
+		// Check if a node for this file already exists
+		existingNode := findChildNode(ui.FileRoot, func(node *tview.TreeNode) bool {
+			ref := node.GetReference()
+			if ref == nil {
+				return false
 			}
-		}
+			existingFileNode := ref.(*FileNode)
+			return existingFileNode == fileNode
+		})
 
-		if !foundMatch {
+		if existingNode == nil {
 			// We haven't seen this file yet, make a new node
-			status := getFileStatus(file)
-			node := tview.NewTreeNode(file)
-			if status != "" {
-				node.SetText(file)
-			}
-			node.SetColor(DetermineColorBasedOnStatus(status))
+			node := tview.NewTreeNode(fileNode.Name)
+			node.SetColor(DetermineColorBasedOnStatus(fileNode.Status))
 			ui.FileRoot.AddChild(node)
-			fileNode := &FileNode{Name: file, Status: status, Active: false}
-			fileNodes = append(fileNodes, fileNode)
 			node.SetReference(fileNode) // Store the FileNode as a reference in the TreeNode
 		} else {
-			status := getFileStatus(file)
-			matchingNode.SetText(file)
-			matchingNode.SetColor(DetermineColorBasedOnStatus(status))
-			for _, child := range matchingNode.GetChildren() {
-				//update token size
-				if strings.HasPrefix(child.GetText(), "*ACTIVE*") {
-					child.SetText(fmt.Sprintf("*ACTIVE* (%d)", getTokens(file)))
-				}
-			}
+			// Update the existing node
+			existingNode.SetText(fileNode.Name)
+			existingNode.SetColor(DetermineColorBasedOnStatus(fileNode.Status))
 		}
 	}
-
-	for _, existingNode := range ui.FileRoot.GetChildren() {
-		foundMatch := false
-		for _, file := range listFiles() {
-			if existingNode.GetText() == file {
-				foundMatch = true
-				break
-			} else {
-				continue
-			}
-		}
-
-		if !foundMatch {
-			// We have a node that doesn't match any files, remove it
-			ui.FileRoot.RemoveChild(existingNode)
-		}
-	}
-
 }
 
 func (ui *UI) UpdateAIView() {

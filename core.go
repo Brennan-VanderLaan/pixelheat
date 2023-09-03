@@ -5,6 +5,7 @@ import (
 )
 
 type Core struct {
+	projectDir       string
 	stack            *MessageStack
 	activeFiles      []*FileNode
 	activeAIAgents   []*AIAgentNode
@@ -18,11 +19,47 @@ type Core struct {
 
 func NewCore() *Core {
 	return &Core{
+		projectDir:      ".",
 		stack:           &MessageStack{},
 		activeFiles:     []*FileNode{},
 		activeAIAgents:  []*AIAgentNode{},
 		backendServices: make(map[string]*Service),
 		serviceUsage:    make(map[string]int),
+	}
+}
+
+func (c *Core) Update() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	// Logic for updating the core
+
+	//Update files in current project
+	c.UpdateFiles()
+
+}
+
+// Update files in current project
+func (c *Core) UpdateFiles() {
+	files := listFiles(".")
+
+	for _, fileName := range files {
+		// Check if this file is already being tracked
+		found := false
+		for _, fileNode := range c.activeFiles {
+			if fileNode.Name == fileName {
+				// Update the status of the existing file node
+				fileNode.Status = getFileStatus(fileName)
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			// Add a new file node for this file
+			status := getFileStatus(fileName)
+			fileNode := &FileNode{Name: fileName, Status: status, Active: false}
+			c.activeFiles = append(c.activeFiles, fileNode)
+		}
 	}
 }
 
