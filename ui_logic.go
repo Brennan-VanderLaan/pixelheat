@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -33,46 +32,6 @@ type UI struct {
 	CurrentFocus      int
 	Primitives        []tview.Primitive
 	ShowFormattedText bool
-}
-
-func ReadmeContent(fileNames []string) string {
-	readmeNames := []string{"readme.md", "readme.txt", "readme"}
-
-	for _, fileName := range fileNames {
-		lowerName := strings.ToLower(fileName)
-		for _, readmeName := range readmeNames {
-			if lowerName == readmeName {
-				content, err := ioutil.ReadFile(fileName)
-				if err != nil {
-					log.Println("Error reading README file: ", err)
-				}
-				return string(content)
-			}
-		}
-	}
-
-	return ""
-}
-
-func GenerateTitle(fileNames []string, path string, date time.Time) string {
-	stack := &MessageStack{}
-
-	// Insert fileNames, path, and date as system messages
-	stack.insertSystemMessage("You are creating a tech title for this application based on whatever the user is doing, don't directly reference anything I just said, only respond with the title")
-	stack.insertSystemMessage(fmt.Sprintf("File Names: %s", strings.Join(fileNames, ", ")))
-	stack.insertSystemMessage(fmt.Sprintf("Path: %s", path))
-	stack.insertSystemMessage(fmt.Sprintf("Date: %s", date.Format(time.RFC3339)))
-
-	// Insert README content as a system message, if available
-	readmeContent := ReadmeContent(fileNames)
-	if readmeContent != "" {
-		stack.insertSystemMessage(fmt.Sprintf("README Content: %s", readmeContent))
-	}
-
-	// Use AI to generate a title
-	title, _ := getChatCompletion(stack.getAllMessages(), GetService("gpt-3.5", "gpt-3.5-turbo"))
-
-	return title
 }
 
 // NewUI creates a new UI instance
