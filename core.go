@@ -48,7 +48,7 @@ func (c *Core) UpdateFiles() {
 		for _, fileNode := range c.activeFiles {
 			if fileNode.Name == fileName {
 				// Update the status of the existing file node
-				fileNode.Status = getFileStatus(fileName)
+				fileNode.Status = getFileStatus(c.projectDir, fileName)
 				found = true
 				break
 			}
@@ -56,7 +56,7 @@ func (c *Core) UpdateFiles() {
 
 		if !found {
 			// Add a new file node for this file
-			status := getFileStatus(fileName)
+			status := getFileStatus(c.projectDir, fileName)
 			fileNode := &FileNode{Name: fileName, Status: status, Active: false}
 			c.activeFiles = append(c.activeFiles, fileNode)
 		}

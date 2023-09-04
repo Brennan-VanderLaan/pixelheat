@@ -26,8 +26,9 @@ const CacheDuration = 2 * time.Second
 
 var fileStatusCache = make(map[string]FileStatusCache)
 
-func getFileStatus(filename string) string {
-	cache, ok := fileStatusCache[filename]
+func getFileStatus(path string, filename string) string {
+	filepath := path + "/" + filename
+	cache, ok := fileStatusCache[filepath]
 	now := time.Now()
 
 	// Add a random duration of up to 3 seconds to the cache duration.
@@ -38,13 +39,13 @@ func getFileStatus(filename string) string {
 	}
 
 	// If the cache does not exist or is too old, perform the check and update the cache.
-	cmd := exec.Command("git", "status", "--short", filename)
+	cmd := exec.Command("git", "status", "--short", filepath)
 	output, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
 	status := strings.TrimSpace(string(output))
 
-	fileStatusCache[filename] = FileStatusCache{Status: status, LastCheck: now.Add(randomDuration)}
+	fileStatusCache[filepath] = FileStatusCache{Status: status, LastCheck: now.Add(randomDuration)}
 	return status
 }
