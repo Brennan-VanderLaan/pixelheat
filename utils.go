@@ -40,7 +40,10 @@ func listFiles(dir string) []string {
 	var filenames []string
 	for _, file := range files {
 		if !file.IsDir() {
-			filenames = append(filenames, file.Name())
+			filenames = append(filenames, fmt.Sprintf("%s/%s", dir, file.Name()))
+		} else {
+			subDir := listFiles(fmt.Sprintf("%s/%s", dir, file.Name()))
+			filenames = append(filenames, subDir...)
 		}
 	}
 	return filenames
@@ -118,14 +121,14 @@ func getLatestGitCommit() string {
 // DetermineColorBasedOnStatus returns the color for the file based on its status.
 func DetermineColorBasedOnStatus(status string) tcell.Color {
 	switch {
-	case status == "":
-		return tcell.ColorGreen // Tracked
-	case strings.HasPrefix(status, "M"):
+	case status == "Modified":
 		return tcell.ColorYellow // Modified
-	case strings.HasPrefix(status, "??"):
+	case status == "Unmodified":
+		return tcell.ColorGreen // Tracked
+	case status == "Untracked":
 		return tcell.ColorGray // Untracked
 	default:
-		return tcell.ColorWhite // Default color for any other status
+		return tcell.ColorLightGray // Default color for any other status
 	}
 }
 

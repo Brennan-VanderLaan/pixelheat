@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -34,12 +34,12 @@ func getChatCompletion(messages []Message, service *Service) (string, float64) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(resp.Body)
 		log.Fatalf("Received %d status from API: %s", resp.StatusCode, bodyBytes)
 	}
 
 	var result map[string]interface{}
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	checkError(err, "Error reading response body")
 
 	err = json.Unmarshal(bodyBytes, &result)

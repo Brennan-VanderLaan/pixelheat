@@ -2,6 +2,8 @@ package main
 
 import (
 	"sync"
+
+	"github.com/go-git/go-git/v5"
 )
 
 type Core struct {
@@ -32,7 +34,6 @@ func (c *Core) Update() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// Logic for updating the core
-
 	//Update files in current project
 	c.UpdateFiles()
 
@@ -42,13 +43,35 @@ func (c *Core) Update() {
 func (c *Core) UpdateFiles() {
 	files := listFiles(".")
 
+	r, _ := git.PlainOpen(".")
+	w, _ := r.Worktree()
+	status, _ := w.Status()
+
 	for _, fileName := range files {
 		// Check if this file is already being tracked
 		found := false
 		for _, fileNode := range c.activeFiles {
 			if fileNode.Name == fileName {
+
+				var untracked bool
+				if status.IsUntracked(fileName[2:]) {
+					untracked = true
+				}
+
 				// Update the status of the existing file node
-				fileNode.Status = getFileStatus(c.projectDir, fileName)
+				file_status := status.File(fileName[2:])
+				status_str := ""
+				if !untracked && file_status.Staging == git.Untracked &&
+					file_status.Worktree == git.Untracked {
+					file_status.Staging = git.Unmodified
+					file_status.Worktree = git.Unmodified
+					status_str = "Unmodified"
+				}
+				if file_status.Worktree == git.Modified {
+					status_str = "Modified"
+				}
+
+				fileNode.Status = status_str
 				found = true
 				break
 			}
@@ -56,8 +79,13 @@ func (c *Core) UpdateFiles() {
 
 		if !found {
 			// Add a new file node for this file
-			status := getFileStatus(c.projectDir, fileName)
-			fileNode := &FileNode{Name: fileName, Status: status, Active: false}
+			file_status := status.File(fileName[2:])
+			status_str := ""
+			if file_status.Worktree == git.Modified {
+				status_str = "Modified"
+			}
+
+			fileNode := &FileNode{Name: fileName, Status: status_str, Active: false}
 			c.activeFiles = append(c.activeFiles, fileNode)
 		}
 	}

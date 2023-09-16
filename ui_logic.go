@@ -32,7 +32,7 @@ type UI struct {
 }
 
 // NewUI creates a new UI instance
-func NewUI(stack *MessageStack) *UI {
+func NewUI(core *Core) *UI {
 	ui := &UI{
 		App:               tview.NewApplication(),
 		Grid:              tview.NewGrid(),
@@ -85,7 +85,7 @@ func NewUI(stack *MessageStack) *UI {
 	ui.AddPrimitive(ui.InputField)
 	ui.AddPrimitive(ui.TrackedFiles)
 	ui.AddPrimitive(ui.AIView)
-	ui.SetupKeybinds(stack)
+	ui.SetupKeybinds(core)
 
 	// Layout
 	ui.Grid.
@@ -106,7 +106,9 @@ func NewUI(stack *MessageStack) *UI {
 	return ui
 }
 
-func (ui *UI) SetupKeybinds(stack *MessageStack) {
+func (ui *UI) SetupKeybinds(core *Core) {
+
+	stack := core.GetStack()
 	// Capture user input to switch focus.
 	ui.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Capture the Tab key to switch focus.
@@ -118,6 +120,7 @@ func (ui *UI) SetupKeybinds(stack *MessageStack) {
 			return nil // Don't propagate the handled event.
 		}
 
+		// Capture Shift-F1 to toggle formatted text
 		if event.Key() == tcell.KeyF1 && event.Modifiers() == tcell.ModShift {
 			ui.ShowFormattedText = !ui.ShowFormattedText
 			if ui.ShowFormattedText {
@@ -129,8 +132,9 @@ func (ui *UI) SetupKeybinds(stack *MessageStack) {
 			return nil
 		}
 
+		// Capture Shift-F2 to send user input
 		if event.Key() == tcell.KeyF2 && event.Modifiers() == tcell.ModShift {
-			ui.HandleInput(stack)
+			ui.HandleInput(core)
 		}
 
 		// Propagate all other events.
@@ -202,14 +206,15 @@ func (ui *UI) SwitchFocus() {
 }
 
 // HandleInput handles user input
-func (ui *UI) HandleInput(stack *MessageStack) {
+func (ui *UI) HandleInput(core *Core) {
 
+	stack := core.GetStack()
 	//Clear the old messages
 	stack.clearMessagesByRole("system")
 	stack.insertSystemMessage("You are a meta application for helping building other applications. You are helping the user with whatever content they have selected. Follow best practices for the content you are helping with. Ask questions when neccessary.")
 
 	// Insert contents of active files as new messages
-	for _, fileNode := range fileNodes {
+	for _, fileNode := range core.GetActiveFiles() {
 		if fileNode.Active {
 			content, err := readFileContents(fileNode.Name)
 			if err != nil {
@@ -223,7 +228,7 @@ func (ui *UI) HandleInput(stack *MessageStack) {
 	userMessage := ui.InputField.GetText()
 	stack.insertUserMessage(userMessage)
 
-	ui.InputField.SetText("", false)
+	ui.InputField.SetText("<sending to agent...>", false)
 	ui.InputField.SetDisabled(true)
 
 	// Display user's message in chatTracking
@@ -260,12 +265,14 @@ func (ui *UI) HandleInput(stack *MessageStack) {
 
 // Draw draws the UI to the screen
 func (ui *UI) Draw(core *Core) {
-	ui.App.QueueUpdateDraw(func() {
-		ui.UpdateAIView()
-		ui.UpdateTrackedFiles(core)
-		ui.UpdateGitCommit()
-		ui.UpdateBackendServices()
-	})
+	go func() {
+		ui.App.QueueUpdateDraw(func() {
+			ui.UpdateAIView()
+			ui.UpdateTrackedFiles(core)
+			ui.UpdateGitCommit()
+			ui.UpdateBackendServices()
+		})
+	}()
 }
 
 // UpdateGitCommit updates the git commit text view
