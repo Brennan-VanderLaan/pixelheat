@@ -7,9 +7,10 @@ import (
 )
 
 type FileNode struct {
-	Name   string
-	Status string
-	Active bool
+	Name      string
+	Status    string
+	Active    bool
+	Directory bool
 }
 
 // FileStatusCache represents the cached file status,

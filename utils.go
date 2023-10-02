@@ -32,6 +32,14 @@ func findChildNode(root *tview.TreeNode, condition func(*tview.TreeNode) bool) *
 
 // listFiles returns a list of all files in the specified directory
 func listFiles(dir string) []string {
+	return listStuff(dir, false)
+}
+
+func listDirs(dir string) []string {
+	return listStuff(dir, true)
+}
+
+func listStuff(dir string, dirs bool) []string {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		log.Fatal(err)
@@ -40,10 +48,13 @@ func listFiles(dir string) []string {
 	var filenames []string
 	for _, file := range files {
 		if !file.IsDir() {
-			filenames = append(filenames, fmt.Sprintf("%s/%s", dir, file.Name()))
+			if !dirs {
+				filenames = append(filenames, fmt.Sprintf("%s", file.Name()))
+			}
 		} else {
-			subDir := listFiles(fmt.Sprintf("%s/%s", dir, file.Name()))
-			filenames = append(filenames, subDir...)
+			if dirs {
+				filenames = append(filenames, fmt.Sprintf("%s", file.Name()))
+			}
 		}
 	}
 	return filenames
@@ -127,6 +138,8 @@ func DetermineColorBasedOnStatus(status string) tcell.Color {
 		return tcell.ColorGreen // Tracked
 	case status == "Untracked":
 		return tcell.ColorGray // Untracked
+	case status == "Directory":
+		return tcell.ColorBlue // Directory
 	default:
 		return tcell.ColorLightGray // Default color for any other status
 	}

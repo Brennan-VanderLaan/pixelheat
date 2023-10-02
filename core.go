@@ -42,10 +42,30 @@ func (c *Core) Update() {
 // Update files in current project
 func (c *Core) UpdateFiles() {
 	files := listFiles(".")
+	dirs := listDirs(".")
 
 	r, _ := git.PlainOpen(".")
 	w, _ := r.Worktree()
 	status, _ := w.Status()
+
+	for _, dirName := range dirs {
+		// Check if this directory is already being tracked
+		found := false
+		for _, fileNode := range c.activeFiles {
+			if fileNode.Name == dirName {
+				// Update the status of the existing file node
+				fileNode.Status = "Directory"
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			// Add a new file node for this file
+			fileNode := &FileNode{Name: dirName, Status: "Directory", Active: false, Directory: true}
+			c.activeFiles = append(c.activeFiles, fileNode)
+		}
+	}
 
 	for _, fileName := range files {
 		// Check if this file is already being tracked
@@ -54,12 +74,12 @@ func (c *Core) UpdateFiles() {
 			if fileNode.Name == fileName {
 
 				var untracked bool
-				if status.IsUntracked(fileName[2:]) {
+				if status.IsUntracked(fileName) {
 					untracked = true
 				}
 
 				// Update the status of the existing file node
-				file_status := status.File(fileName[2:])
+				file_status := status.File(fileName)
 				status_str := ""
 				if !untracked && file_status.Staging == git.Untracked &&
 					file_status.Worktree == git.Untracked {
