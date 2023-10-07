@@ -189,6 +189,21 @@ func (c *Core) RemoveActiveAIAgent(agent *AIAgentNode) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// Logic for removing the AIAgentNode from the slice
+
+	//Find the index of the agent
+	index := -1
+	for i, a := range c.activeAIAgents {
+		if a == agent {
+			index = i
+			break
+		}
+	}
+
+	//Remove the agent
+	if index != -1 {
+		c.activeAIAgents = append(c.activeAIAgents[:index], c.activeAIAgents[index+1:]...)
+	}
+
 }
 
 func (c *Core) UpdateBackendService(service *Service) {

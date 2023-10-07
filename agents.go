@@ -34,7 +34,7 @@ func (a *AIAgent) HandleInput(input string, stack *MessageStack, core *Core) str
 	stack.insertUserMessage(input)
 
 	// Send user's message to the API and get the response
-	response, _ := getChatCompletion(stack.getAllMessages(), GetService("gpt-4", "gpt-4"))
+	response, _ := getChatCompletion(stack.getAllMessages(), a.Services[0])
 	stack.insertAssistantMessage(response)
 
 	return response
