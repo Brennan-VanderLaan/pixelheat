@@ -41,10 +41,10 @@ func (c *Core) Update() {
 
 // Update files in current project
 func (c *Core) UpdateFiles() {
-	files := listFiles(".")
-	dirs := listDirs(".")
+	files := listFiles(c.projectDir)
+	dirs := listDirs(c.projectDir)
 
-	r, _ := git.PlainOpen(".")
+	r, _ := git.PlainOpen(c.projectDir)
 	w, _ := r.Worktree()
 	status, _ := w.Status()
 
@@ -98,17 +98,29 @@ func (c *Core) UpdateFiles() {
 		}
 
 		if !found {
-			// Add a new file node for this file
-			file_status := status.File(fileName[2:])
-			status_str := ""
-			if file_status.Worktree == git.Modified {
-				status_str = "Modified"
-			}
-
-			fileNode := &FileNode{Name: fileName, Status: status_str, Active: false}
+			fileNode := &FileNode{Name: fileName, Status: "Unmodified", Active: false}
 			c.activeFiles = append(c.activeFiles, fileNode)
 		}
 	}
+}
+
+// Handle Input
+func (c *Core) HandleInput(input string) string {
+	// Logic for handling input
+
+	stack := c.GetStack()
+
+	//Check active agents at least 0
+	if len(c.GetActiveAIAgents()) == 0 {
+		return "No active agents."
+	}
+
+	//Get the active agent
+	agent := c.GetActiveAIAgents()[0]
+
+	response := agent.AIAgent.HandleInput(input, stack, c)
+
+	return response
 }
 
 // Getters

@@ -2,15 +2,15 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 type AIAgentNode struct {
-	Name   string
-	Active bool
+	Name    string
+	AIAgent *AIAgent
+	Active  bool
 }
 
 type UI struct {
@@ -43,7 +43,7 @@ func NewUI(core *Core) *UI {
 		BackendServices:   tview.NewTextView(),
 		ChatTracking:      tview.NewTextView(),
 		InputField:        tview.NewTextArea(),
-		FileRoot:          tview.NewTreeNode("./"),
+		FileRoot:          tview.NewTreeNode(core.projectDir),
 		AIViewRoot:        tview.NewTreeNode("AI Agents"),
 		aiAgentNodes:      []*AIAgentNode{},
 		CurrentFocus:      0,
@@ -147,7 +147,7 @@ func (ui *UI) SetupKeybinds(core *Core) {
 			return
 		}
 		fileNode := ref.(*FileNode)
-		fileNode.Active = !fileNode.Active // Toggle the active sta	te
+		fileNode.Active = !fileNode.Active // Toggle the active state
 
 		// If the fileNode is active, add a child node with "*ACTIVE*"
 		// If the fileNode is not active, remove all child nodes (assuming it only has the "*ACTIVE*" node)
@@ -181,6 +181,8 @@ func (ui *UI) SetupKeybinds(core *Core) {
 			activeNode := tview.NewTreeNode("*ACTIVE*")
 			activeNode.SetColor(tcell.ColorBlue)
 			node.AddChild(activeNode)
+
+			core.AddActiveAIAgent(agentNode)
 		} else {
 			// Remove all child nodes
 			for _, child := range node.GetChildren() {
@@ -188,6 +190,7 @@ func (ui *UI) SetupKeybinds(core *Core) {
 					node.RemoveChild(child)
 				}
 			}
+			core.RemoveActiveAIAgent(agentNode)
 		}
 	})
 
@@ -208,25 +211,7 @@ func (ui *UI) SwitchFocus() {
 // HandleInput handles user input
 func (ui *UI) HandleInput(core *Core) {
 
-	stack := core.GetStack()
-	//Clear the old messages
-	stack.clearMessagesByRole("system")
-	stack.insertSystemMessage("You are a meta application for helping building other applications. You are helping the user with whatever content they have selected. Follow best practices for the content you are helping with. Ask questions when neccessary.")
-
-	// Insert contents of active files as new messages
-	for _, fileNode := range core.GetActiveFiles() {
-		if fileNode.Active {
-			content, err := readFileContents(fileNode.Name)
-			if err != nil {
-				log.Printf("Error reading file %s: %v", fileNode.Name, err)
-				continue
-			}
-			stack.insertSystemMessage(fmt.Sprintf("File: %s\nContent:\n%s", fileNode.Name, content))
-		}
-	}
-
 	userMessage := ui.InputField.GetText()
-	stack.insertUserMessage(userMessage)
 
 	ui.InputField.SetText("<sending to agent...>", false)
 	ui.InputField.SetDisabled(true)
@@ -236,10 +221,8 @@ func (ui *UI) HandleInput(core *Core) {
 
 	// Use a goroutine to make the API call asynchronously
 	go func() {
-		// Send user's message to the API and get the response
-		response, _ := getChatCompletion(stack.getAllMessages(), GetService("gpt-4", "gpt-4"))
 
-		stack.insertAssistantMessage(response)
+		response := core.HandleInput(userMessage)
 
 		// Update the UI in the main goroutine
 		ui.App.QueueUpdateDraw(func() {
@@ -351,7 +334,7 @@ func (ui *UI) UpdateAIView() {
 
 		if !foundMatch {
 			// We haven't seen this agent yet, make a new node
-			agentNode := &AIAgentNode{Name: agent.Name, Active: false}
+			agentNode := &AIAgentNode{Name: agent.Name, Active: false, AIAgent: agent}
 			ui.aiAgentNodes = append(ui.aiAgentNodes, agentNode)
 			matchingAgent = tview.NewTreeNode(agent.Name)
 			matchingAgent.SetColor(tcell.ColorWhite)
